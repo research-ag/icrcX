@@ -1,0 +1,71 @@
+type Token = principal;
+type Amount = nat;
+
+type TokenInfo = record {
+  min_deposit : Amount;
+  min_withdrawal : Amount;
+  deposit_fee : Amount;
+  withdrawal_fee : Amount;
+};
+
+type Subaccount = blob;
+
+type NotifyArg = record {
+  token : Token;
+};
+
+type NotifyResult = record {
+  deposit_inc : Amount;
+  credit_inc : Amount;
+};
+
+type NotifyResponse = variant {
+  Ok : NotifyResult;
+  Err : variant {
+    CallLedgerError : text;
+    NotAvailable : text;
+  };
+};
+
+type BalanceResponse = variant {
+  Ok : Amount;
+  Err : variant {
+    NotAvailable : text;
+  };
+};
+
+type WithdrawArgs = record {
+  to_subaccount : opt Subaccount;
+  amount : Amount;
+  token : Token;
+};
+
+type WithdrawResponse = variant {
+  Ok : record {
+    txid : nat;
+    amount : Amount;
+  };
+  Err : variant {
+    CallLedgerError : text;
+    InsufficientCredit;
+    AmountBelowMinimum;
+  };
+};
+
+service : () -> {
+  // helper function
+  principalToSubaccount : (principal) -> (opt blob) query;
+
+  // public queries
+  icrcX_supported_tokens : () -> (vec Token) query;
+  icrcX_token_info : (Token) -> (TokenInfo) query;
+
+  // private queries
+  icrcX_credit : (Token) -> (int) query;
+  icrcX_all_credits : () -> (vec record { Token; Amount }) query;
+  icrcX_trackedDeposit : (Token) -> (BalanceResponse) query;
+
+  // updates
+  icrcX_notify : (NotifyArg) -> (NotifyResponse);
+  icrcX_withdraw : (WithdrawArgs) -> (WithdrawResponse);
+};
