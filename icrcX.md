@@ -228,7 +228,7 @@ If the first `notify` arrives _after_ the second deposit then two responses are:
 `{ deposit_inc = 0; credit_inc = 0 }`.
 In this case the deposit fee is applied only once because the service sees it as one deposit.
 
-## Deposit balance
+## Tracked balance
 
 It was said above that `deposit_inc` returned by `notify` is the difference in deposit balance relative to the last known (= "tracked") deposit balance.
 The tracked deposit balance can be queried with the following method.
@@ -267,6 +267,56 @@ then the service returns the `Err = NotAvailable` variant.
 This indicates to the user to try again later.
 For example, the downstream call could be a balance query (triggered by `notify`)
 or a consolidation transfer that relates to the caller's deposit account for the specified `Token`.
+
+## Deposit
+
+An alternative way to make deposits is via allowances.
+The user has to set up an allowance for one of its subaccounts with the service's principal as the spender.
+The user then calls the function
+
+```candid "Methods" +=
+  icrcX_deposit : (DepositArg) -> (DepositResponse);
+```
+
+with the following argument:
+
+```candid "Type definitions" +=
+type DepositArgs = record {
+  token : Token;
+  amount : Amount;
+  subaccount : opt Subaccount; // subaccount of the caller which has the allowance
+};
+```
+
+`token` is the Token that is being deposited.
+`amount` is the amount that is to be drawn from the allowance into the service.
+Any ledger transfer fees will be added on the user account's side.
+`subaccount` is the user's subaccount that carries the allowance where `null` means the default account.
+
+If successful, the call returns:
+
+* the ICRC-1 ledger txid of the transfer that happened 
+* the increment in credit that resulted out of this call
+
+```candid "Type definitions" +=
+type DepositResponse = variant {
+  Ok : record {
+    txid : nat;
+    credit_inc : Amount;
+  };
+  Err : variant {
+    AmountBelowMinimum;
+    CallLedgerError : text;
+    TransferError : text; // insufficient allowance or insufficient funds
+  };
+};
+```
+
+Possible errors that can occur are:
+* the amount can be lower than the minimum that the service has defined (AmountBelowMinimum)
+* the ICRC-1 ledger may not support ICRC-2 (CallLedgerError)
+* the inter-canister call to the ICRC-2 ledger can fail entirely (CallLedgerError)
+* the call can go through but the transfer can fail (TransferError)
 
 ## Withdrawal
 
@@ -372,17 +422,16 @@ However, we want to be able to keep the services as simple as possible.
 In particular, we do not want to burden the services with the necessity to log all internal transactions.
 Hence, this restrictions is made to offload all logging to the ICRC-1 ledgers.
 
-### Why does the standard not include deposits via allowances?
+### What are the benfits of using notify vs allowances?
 
-It is planned to add a version of `notify` that takes an allowance and an amount as arguments.
-The service will then draw the specified amount directly from the allowance.
+Allowances are simpler to process for the service. 
+Overall transaction fees are lower if an allowance is used for multiple deposits.
 
-While allowances provide a simpler flow for the service,
-we do not have them as the only solutions because:
+Deposits into subaccounts are provided in case:
 
-* there may be ICRC-1 ledger that do not support ICRC-2
-* there may be wallets that do not support ICRC-2 (currently most)
-* deposits can be made directly from exchanges
+* the ICRC-1 ledger does not support ICRC-2
+* the user's wallet does not support ICRC-2 (currently most)
+* the user wants to make a deposit directly from an exchange
 
 ## Open questions
 
