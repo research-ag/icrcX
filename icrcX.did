@@ -62,7 +62,7 @@ service : () -> {
 
   // private queries
   icrcX_credit : (Token) -> (int) query;
-  icrcX_all_credits : () -> (vec record { Token; Amount }) query;
+  icrcX_all_credits : () -> (vec record { Token; int }) query;
   icrcX_trackedDeposit : (Token) -> (BalanceResponse) query;
 
   // updates

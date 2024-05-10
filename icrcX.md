@@ -135,7 +135,7 @@ For greater efficiency and to reduce query load,
 there is a method to obtain a user's credits in all tokens at once.
 
 ```candid "Methods" +=
-icrcX_all_credits : () -> (vec record { Token; Amount }) query;
+icrcX_all_credits : () -> (vec record { Token; int }) query;
 ```
 
 As before, the service is not expected to recognize the caller as an existing user.
@@ -213,24 +213,24 @@ If the user makes two deposit transfers and then calls `notify`
 (with no additional `notify` call between the two deposit transfers)
 then `notify` will return the sum of the two transfer amounts as `deposit_inc`.
 
-The `credit_inc` field is the incremental credit amount applied to the user.
-This may be lower than `deposit_inc` due to the application of deposit fees, but does not have to be lower.
+The `credit_inc` field is the incremental credit amount applied to the user as a result of this call.
+The value may be lower than `deposit_inc` due to the application of deposit fees, but does not have to be lower.
 `credit_inc` is provided here because the user cannot reliably compute it himself from other data.
 
 If multiple deposit transactions happened concurrently with calls to `notify` then the end result may depend on timing.
 For example, say the ledger fee is 10.
-If a deposit of 20 tokens is made, then `notify` is called, then another 20 tokens are deposited and `notify` called again
+If a deposit of 20 tokens is made, then `notify` is called, then another 20 tokens are deposited and `notify` is called again
 then the two `notify` responses are:
 `{ deposit_inc = 20; credit_inc = 10 }`, 
 `{ deposit_inc = 20; credit_inc = 10 }`.
 If the first `notify` arrives _after_ the second deposit then two responses are:
 `{ deposit_inc = 40; credit_inc = 30 }`, 
 `{ deposit_inc = 0; credit_inc = 0 }`.
+In this case the deposit fee is applied only once because the service sees it as one deposit.
 
 ## Deposit balance
 
 It was said above that `deposit_inc` returned by `notify` is the difference in deposit balance relative to the last known (= "tracked") deposit balance.
-tify
 The tracked deposit balance can be queried with the following method.
 
 ```candid "Methods" +=
