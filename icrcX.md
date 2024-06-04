@@ -6,7 +6,7 @@ An example for such a service is a DEX.
 ## Tokens
 
 The same service can accept deposits in one or more different ICRC-1 tokens.
-A token is uniquely identified by the canister id (principal) of the token's ledger canister.  
+A token is uniquely identified by the principal of its ICRC-1 ledger.
 
 ```candid "Type definitions" +=
 type Token = principal;
@@ -39,7 +39,13 @@ type User = principal;
 
 ## Deposit accounts
 
-Users make deposits into individual deposit accounts which are subaccounts that are derived from the `User` principal in a deterministic and publicly known way.
+There are two ways for a user to deposit funds to the service.
+The first one is via direct transfer to a deposit account.
+The second one is via an allowance,
+but only if the ICRC-1 ledger supports ICRC-2.
+
+In the direct transfer method,
+users make deposits into individual deposit accounts which are subaccounts that are derived from the `User` principal in a deterministic and publicly known way.
 The derivation works by embedding the principal bytes right-aligned into the 32 subaccount bytes, pre-pending a length byte, and left-padding with zeros.
 
 ```candid "Type definitions" +=
@@ -49,9 +55,9 @@ type Subaccount = blob;
 ## Requirements
 
 The only requirement on the underlying token ledger is the ICRC-1 standard.
-Since the deposit flow is based on deposit accounts, not allowances, the ICRC-2 extension is not required.
+Since the standard deposit method is based on deposit accounts, not allowances, the ICRC-2 extension is not required.
 Moreover, as will become clear below,
-the deposit flow is _balance-based_ (as opposed to transaction-based).
+the deposit method is _balance-based_ (as opposed to transaction-based).
 This means it is sufficient that the service can read the balances in the deposit accounts from the underlying token ledger.
 It is not required that the service can inspect individual deposit transactions by transaction id, memo or other means.
 Hence, it is not required that the underlying token ledger provides an indexer, transaction history or archive.
@@ -59,7 +65,8 @@ In particular, the ICRC-3 extension is not required.
 
 ## TokenInfo
 
-Each token has the following configuration parameters which may change over time.
+For each token the service has the following public set of configuration parameters defined.
+The values may change over time.
 
 ```candid "Type definitions" +=
 type TokenInfo = record {
@@ -72,8 +79,9 @@ type TokenInfo = record {
 
 `deposit_fee` specifies the fee that is deducted each time a deposit is detected and consolidated into the service's main account.
 The `deposit_fee` can but does not have to coincide with the transfer fee of the underlying ICRC-1 token.
-However, the application of the `deposit_fee` coincides with the ICRC-1 transfers into the service's main account.
-For example, if the user makes multiple installments into the deposit account and then the service manages to consolidates them all at once into its main account then the `deposit_fee` is charged only once.
+However, the _application_ of the `deposit_fee` should coincide with actual transfers happening.
+For example, if the user makes multiple installments into the deposit account and then the service manages to consolidates them all at once into its main account then the `deposit_fee` should be charged only once.
+But still, the amount of the `deposit_fee` can differ from the underlying transfer fee charged by the ledger.
 
 `withdrawal_fee` specifies the fee that is deducted when the user makes a withdrawal. 
 The `withdrawal_fee` can but does not have to coincide with the transfer fee of the underlying ICRC-1 token.
@@ -81,13 +89,16 @@ It is charged for each withdrawal that a user makes and that results in a succes
 
 `min_deposit` is the minimal deposit that is considered valid by the service.
 Any balance in a deposit account that is below this value is ignored.
-`min_deposit` must be larger than `deposit_fee`.
 For example, say for the ICP token a service has defined `deposit_fee = 20_000` and `min_deposit = 100_000`.
 If the user makes a deposit of exactly `100_000` e8s
 then `20_000` will be deducted and the user will be credited
 with `80_000` e8s. 
 The service will empty out the user's deposit account.
 As a result, the service will take in `90_000` e8s because the ICP ledger's transfer fee is `10_000` e8s.
+If instead the user had made a deposit of `99,999` then it would have been ignored.
+
+`min_deposit` must be larger than `deposit_fee`.
+For example, if `deposit_fee = 20_000` then `min_deposit` must be at least `20_001`.
 
 `min_withdrawal` is the minimal withdrawal that a user can make.
 Any withdrawal request below this amount will be denied.
@@ -98,21 +109,23 @@ then the user will be debited with `100_000` e8s
 and the service will initiate a transfer of `80_000` e8s to the user.
 As a result, the service will pay `90_000` e8s because the ICP ledger's transfer fee is `10_000` e8s.
 
+Note: The service will never make transfers of amount 0 on the ICRC-1 ledgers even though ICRC-1 technically allows them.
+This is true for consolidation of deposits and for withdrawals.
+
 The token info can be queried with the following method.
 
 ```candid "Methods" +=
 icrcX_token_info : (Token) -> (TokenInfo) query;
 ```
 
-If the specified `Token` is not supported by the service then the call will throw the async error `canister_reject`.
-The error message is not specified by this standard but is recommended to indicate the reason.
+If the specified `Token` is not supported by the service then the call will throw the async error `canister_reject` with error message `"UnknownToken"`.
 
 ## Credits
 
 Credits are tracked by the service on a per-token basis.
 The unit for credits is the same as the unit of the corresponsing ICRC-1 token.
-However, credits being virtual are of slighly different nature than token balances even though the use the same unit.
-We want to allow credits to go negative as well, hence we use type `int`.
+However, credits are of slighly different nature than token balances even though the use the same unit.
+Credits are virtual and for greater flexibility we allow credits to go negative, hence we use type `int`.
 
 A user can query his personal credit balance with the following method.
 
@@ -125,7 +138,7 @@ If the specified `Token` is not supported by the service then the call will thro
 Credit balances are private.
 The above method returns the balance of the caller.
 
-The service is not expected to recognize the caller as an existing user.
+The service is not expected to distinguish non-existing users from existing ones with a credit balance of 0.
 If the caller is not known to the service,
 has never used the service before,
 or has never used the service for the given Token before
@@ -138,16 +151,16 @@ there is a method to obtain a user's credits in all tokens at once.
 icrcX_all_credits : () -> (vec record { Token; int }) query;
 ```
 
-As before, the service is not expected to recognize the caller as an existing user.
-If the caller is not known to the service,
-or has never used the service before
-then the method simply returns an empty vector.
-This is the same as a user who has used the service before
-but now has a zero credit balance for all tokens.
+The returned vector contains all tokens for which the caller has a non-zero credit balance.
+The tokens with a zero credit balance are stripped from the response.
+
+As before, a non-existing user is handled the same as a user with
+a zero balance in all tokens.
+In both cases an empty vector is returned.
 
 ## Notification
 
-There are two steps for a user to make a deposit:
+There are two steps required when a user makes a deposit with the direct transfer method:
 
 1. Make a transfer on the underlying ICRC-1 ledger into the personal deposit account under control of the service.
 2. Notify the service about the fact that a deposit has been made.
@@ -187,8 +200,7 @@ type NotifyResult = variant {
 };
 ```
 
-If the specified `Token` is not supported by the service then the call will throw the async error `canister_reject`.
-The error message is not specified by this standard but is recommended to indicate the reason.
+If the specified `Token` is not supported by the service then the call will throw the async error `canister_reject` with error message `"UnknownToken"`.
 
 The service will make a downstream call to the underlying ICRC-1 ledger before returning to the user.
 If the downstream call fails then the variant `Err = CallLedgerError` is returned.
@@ -228,6 +240,10 @@ If the first `notify` arrives _after_ the second deposit then two responses are:
 `{ deposit_inc = 0; credit_inc = 0 }`.
 In this case the deposit fee is applied only once because the service sees it as one deposit.
 
+The service is free to expand the response record with additional optional fields.
+For example, if the service has expanded the argument record with a field specifying an action which is done after the notification
+then it may want to also expand the response record with a field describing the result of that action.
+
 ## Tracked balance
 
 It was said above that `deposit_inc` returned by `notify` is the difference in deposit balance relative to the last known (= "tracked") deposit balance.
@@ -237,8 +253,7 @@ The tracked deposit balance can be queried with the following method.
 icrcX_trackedDeposit : (Token) -> (BalanceResult) query;
 ```
 
-If the specified `Token` is not supported by the service then the call will throw the async error `canister_reject`.
-The error message is not specified by this standard but is recommended to indicate the reason.
+If the specified `Token` is not supported by the service then the call will throw the async error `canister_reject` with error message `"UnknownToken"`.
 
 Otherwise the method the returns the following type.
 
@@ -339,12 +354,10 @@ the `Token` to be withdrawn,
 the subaccount of the caller which is the destination of the withdrawal,
 and the `Amount` to be taken from the caller's credits.
 
-If the specified `Token` is not supported by the service then the call will throw the async error `canister_reject`.
-The error message is not specified by this standard but is recommended to indicate the reason.
+If the specified `Token` is not supported by the service then the call will throw the async error `canister_reject` with error message `"UnknownToken"`.
 
-If the specified `Subaccount` is invalid (e.g. not 32 bytes long)
-then the call will throw the async error `canister_reject`.
-The error message is not specified by this standard but is recommended to indicate the reason.
+If the specified `Subaccount` is not 32 bytes long
+then the call will throw the async error `canister_reject` with error message `"InvalidSubaccount"`.
 
 Otherwise, the following result type is returned.
 
@@ -366,7 +379,7 @@ If the user's credit is below the requested `Amount` then `Err = InsufficientCre
 
 If the requested `Amount` is smaller than the Token parameter `min_withdrawal` then `Err = AmountBelowMinimum` is returned.
 
-If the the downstream call to the ICRC-1 ledger fails with an async error then `Err = CallLedgerError` is returned.
+If the downstream call to the ICRC-1 ledger fails with an async error then `Err = CallLedgerError` is returned.
 The accompanying text message should indicate the actual async error that happened.
 
 Otherwise the `Ok` variant is returned. 
@@ -377,24 +390,26 @@ because `withdrawal_fee` was deducted.
 
 ## FAQ
 
-### Why is notify access-controlled?
+### Why is `notify` access-controlled?
 
 Notify is not idempotent in its return value.
-If someone else can call notify for us then we could miss an increment value.
+If someone else can call notify for us then we could miss an incremental value.
 
 Notify calls are expensive for the service because of the downstream inter-canister call that they trigger.
 Restricting the caller makes it easier to control or charge for that cost.
 
 ### Why is the credit balance access-controlled?
 
-Deposits are publicly visible on the ICRC-1 ledger and from that one can conclude on corresponding credit increments for the user.
-From there on, however, further changes to the credit balance, increase or decrease, depend on the usage of the service by the user.
+Deposits are publicly visible on the ICRC-1 ledger.
+Any observer can conclude from those deposit transactions 
+to corresponding incoming credits for the user.
+But from there on further changes to the credit balance, increase or decrease, depend on the usage of the service by the user.
 For example, in a DEX the credit changes would correspond to bids placed or trades executed.
 We do not want to leak that information.
 
-### Why does notify use a balance-based approach, not transaction based?
+### Why does `notify` use a balance-based approach, not transaction-based?
 
-The transaction based approach would mean to "claim" a specific deposit transaction where the transaction is specified by txid and is bound to the user by memo.
+The transaction-based approach would mean that the user "claims" a specific deposit transaction where the transaction is specified by txid and is bound to the user by memo.
 The advantage is that individual deposit accounts can be avoided,
 hence the consolidation step is not needed which saves fees.
 
@@ -411,18 +426,19 @@ It makes the service leaner and easier to handle upgrades.
 This is done to offload tracability of funds to the underlying ICRC-1 ledgers.
 By looking at the underlying ICRC-1 ledger only,
 all deposited funds can be uniquely linked to the principal that is being credited.
-With this restriction the same is possible for withdrawals.
+Through this restriction the same is possible for withdrawals.
 By looking at the receiving principal of a transfer on the ledger
-we know that this principal made the withdrawal. 
+we know that this same principal was also the one who initiated the withdrawal. 
 
 This prevents the service to act as a mixer.
-Without this restriction the services could potentially be forced to either do KYC or to provide a complete log of its internal transaction,
+Without this restriction,
+the services could potentially be forced to either do KYC or to provide a complete log of its internal transaction,
 to make the internal flow of funds tracable. 
 However, we want to be able to keep the services as simple as possible.
 In particular, we do not want to burden the services with the necessity to log all internal transactions.
 Hence, this restrictions is made to offload all logging to the ICRC-1 ledgers.
 
-### What are the benfits of using notify vs allowances?
+### What are the benfits of using `notify` vs allowances?
 
 Allowances are simpler to process for the service. 
 Overall transaction fees are lower if an allowance is used for multiple deposits.
@@ -430,7 +446,7 @@ Overall transaction fees are lower if an allowance is used for multiple deposits
 Deposits into subaccounts are provided in case:
 
 * the ICRC-1 ledger does not support ICRC-2
-* the user's wallet does not support ICRC-2 (currently most)
+* the user's wallet does not support ICRC-2 (currently most wallets)
 * the user wants to make a deposit directly from an exchange
 
 ## Open questions
@@ -438,4 +454,3 @@ Deposits into subaccounts are provided in case:
 Shall we offer a function for a user to "burn" his credits?
 
 Shall we offer a function for a user to retrieve history such as a log of credit/debit events?
-
