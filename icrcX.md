@@ -195,8 +195,8 @@ type NotifyResult = variant {
     credit : int;
   }; 
   Err : variant {
-    CallLedgerError : text;
-    NotAvailable : text;
+    CallLedgerError : record { message : text };
+    NotAvailable : record { message : text };
   };
 };
 ```
@@ -264,7 +264,7 @@ Otherwise the method the returns the following type.
 type BalanceResult = variant {
   Ok : Amount;
   Err : variant {
-    NotAvailable : text;
+    NotAvailable : record { message : text };
   };
 };
 ```
@@ -321,9 +321,9 @@ If successful, the call returns:
 type DepositResponse = variant {
   Ok : DepositResult;
   Err : variant {
-    AmountBelowMinimum;
-    CallLedgerError : text;
-    TransferError : text; // insufficient allowance or insufficient funds
+    AmountBelowMinimum : record {};
+    CallLedgerError : record { message : text };
+    TransferError : record { message : text }; // insufficient allowance or insufficient funds
   };
 };
 
@@ -375,9 +375,9 @@ type WithdrawResult = variant {
     amount : Amount;
   };
   Err : variant {
-    InsufficientCredit;
-    AmountBelowMinimum;
-    CallLedgerError : text;
+    InsufficientCredit : record {};
+    AmountBelowMinimum : record {};
+    CallLedgerError : record { message : text };
   };
 };
 ```
