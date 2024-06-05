@@ -79,16 +79,16 @@ service : () -> {
   principalToSubaccount : (principal) -> (opt blob) query;
 
   // public queries
-  icrcX_supported_tokens : () -> (vec Token) query;
-  icrcX_token_info : (Token) -> (TokenInfo) query;
+  icrc84_supported_tokens : () -> (vec Token) query;
+  icrc84_token_info : (Token) -> (TokenInfo) query;
 
   // private queries
-  icrcX_credit : (Token) -> (int) query;
-  icrcX_all_credits : () -> (vec record { Token; int }) query;
-  icrcX_trackedDeposit : (Token) -> (BalanceResponse) query;
+  icrc84_credit : (Token) -> (int) query;
+  icrc84_all_credits : () -> (vec record { Token; int }) query;
+  icrc84_trackedDeposit : (Token) -> (BalanceResponse) query;
 
   // updates
-  icrcX_notify : (NotifyArg) -> (NotifyResponse);
-  icrcX_deposit : (DepositArgs) -> (DepositResponse);
-  icrcX_withdraw : (WithdrawArgs) -> (WithdrawResponse);
+  icrc84_notify : (NotifyArg) -> (NotifyResponse);
+  icrc84_deposit : (DepositArgs) -> (DepositResponse);
+  icrc84_withdraw : (WithdrawArgs) -> (WithdrawResponse);
 };

@@ -1,4 +1,4 @@
-# ICRC-X: Deposit and Withdrawal Standard for ICRC-1 tokens
+# ICRC-84: Deposit and Withdrawal Standard for ICRC-1 tokens
 
 Financial service canisters use this standard to allow users to deposit ICRC-1 tokens and withdraw them again.
 An example for such a service is a DEX.
@@ -15,7 +15,7 @@ type Token = principal;
 The list of accepted tokens can be queried with the following function.
 
 ```candid "Methods" +=
-icrcX_supported_tokens : () -> (vec Token) query;
+icrc84_supported_tokens : () -> (vec Token) query;
 ```
 
 ## Amounts
@@ -115,7 +115,7 @@ This is true for consolidation of deposits and for withdrawals.
 The token info can be queried with the following method.
 
 ```candid "Methods" +=
-icrcX_token_info : (Token) -> (TokenInfo) query;
+icrc84_token_info : (Token) -> (TokenInfo) query;
 ```
 
 If the specified `Token` is not supported by the service then the call will throw the async error `canister_reject` with error message `"UnknownToken"`.
@@ -130,7 +130,7 @@ Credits are virtual and for greater flexibility we allow credits to go negative,
 A user can query his personal credit balance with the following method.
 
 ```candid "Methods" +=
-icrcX_credit : (Token) -> (int) query;
+icrc84_credit : (Token) -> (int) query;
 ```
 
 If the specified `Token` is not supported by the service then the call will throw the async error `canister_reject` with error message `"UnknownToken"`.
@@ -148,7 +148,7 @@ For greater efficiency and to reduce query load,
 there is a method to obtain a user's credits in all tokens at once.
 
 ```candid "Methods" +=
-icrcX_all_credits : () -> (vec record { Token; int }) query;
+icrc84_all_credits : () -> (vec record { Token; int }) query;
 ```
 
 The returned vector contains all tokens for which the caller has a non-zero credit balance.
@@ -170,7 +170,7 @@ Then the service queries the ICRC-1 ledger for the balance in the deposit accoun
 The second step is done via the following method.
 
 ```candid "Methods" +=
-  icrcX_notify : (NotifyArg) -> (NotifyResult);
+  icrc84_notify : (NotifyArg) -> (NotifyResult);
 ```
 
 where
@@ -182,7 +182,7 @@ type NotifyArg = record {
 ```
 
 
-A call to `icrcX_notify` notifies the service about a deposit into the deposit account of the caller for the specified token.
+A call to `icrc84_notify` notifies the service about a deposit into the deposit account of the caller for the specified token.
 The service is free to expand this record with additional optional fields to include an action that is to be done with the newly detected deposits.
 
 The result type is as follows.
@@ -253,7 +253,7 @@ It was said above that `deposit_inc` returned by `notify` is the difference in d
 The tracked deposit balance can be queried with the following method.
 
 ```candid "Methods" +=
-icrcX_trackedDeposit : (Token) -> (BalanceResult) query;
+icrc84_trackedDeposit : (Token) -> (BalanceResult) query;
 ```
 
 If the specified `Token` is not supported by the service then the call will throw the async error `canister_reject` with error message `"UnknownToken"`.
@@ -293,7 +293,7 @@ The user has to set up an allowance for one of its subaccounts with the service'
 The user then calls the function
 
 ```candid "Methods" +=
-  icrcX_deposit : (DepositArg) -> (DepositResponse);
+  icrc84_deposit : (DepositArg) -> (DepositResponse);
 ```
 
 with the following argument:
@@ -345,7 +345,7 @@ Possible errors that can occur are:
 The user can initiate a withdrawal with the following method.
 
 ```candid "Methods" +=
-icrcX_withdraw : (WithdrawArgs) -> (WithdrawResult);
+icrc84_withdraw : (WithdrawArgs) -> (WithdrawResult);
 ```
 with
 ```candid "Type definitions" +=
