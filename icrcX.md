@@ -314,19 +314,23 @@ Any ledger transfer fees will be added on the user account's side.
 If successful, the call returns:
 
 * the ICRC-1 ledger txid of the transfer that happened 
-* the increment in credit that resulted out of this call
+* the incremental credit that resulted out of this call
+* the absolute credit balance after the incremental credit has been applied 
 
 ```candid "Type definitions" +=
 type DepositResponse = variant {
-  Ok : record {
-    txid : nat;
-    credit_inc : Amount;
-  };
+  Ok : DepositResult;
   Err : variant {
     AmountBelowMinimum;
     CallLedgerError : text;
     TransferError : text; // insufficient allowance or insufficient funds
   };
+};
+
+type DepositResult = record {
+  txid : nat;
+  credit_inc : Amount;
+  credit : int;
 };
 ```
 

@@ -59,11 +59,14 @@ type DepositArgs = record {
   subaccount : opt Subaccount; // subaccount of the caller which has the allowance
 };
 
+type DepositResult = record {
+  txid : nat;
+  credit_inc : Amount;
+  credit : int;
+};
+
 type DepositResponse = variant {
-  Ok : record {
-    txid : nat;
-    credit_inc : Amount;
-  };
+  Ok : DepositResult;
   Err : variant {
     AmountBelowMinimum;
     CallLedgerError : text;
