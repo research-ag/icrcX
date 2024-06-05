@@ -450,11 +450,17 @@ Hence, this restrictions is made to offload all logging to the ICRC-1 ledgers.
 Allowances are simpler to process for the service. 
 Overall transaction fees are lower if an allowance is used for multiple deposits.
 
-Deposits into subaccounts are provided in case:
+But allowances due not always work, for example if
 
 * the ICRC-1 ledger does not support ICRC-2
 * the user's wallet does not support ICRC-2 (currently most wallets)
 * the user wants to make a deposit directly from an exchange
+
+Another common case in which allowances do not work is if the user logs in with Internet Identity to the service frontend.
+Then the user will have one principal in the service frontend
+and another principal in his wallet.
+He can create an allowance from his wallet principal to the service
+but the service frontend will not recognize this principal. 
 
 ## Open questions
 
