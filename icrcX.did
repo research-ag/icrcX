@@ -23,15 +23,15 @@ type NotifyResult = record {
 type NotifyResponse = variant {
   Ok : NotifyResult;
   Err : variant {
-    CallLedgerError : text;
-    NotAvailable : text;
+    CallLedgerError : record { message : text };
+    NotAvailable : record { message : text };
   };
 };
 
 type BalanceResponse = variant {
   Ok : Amount;
   Err : variant {
-    NotAvailable : text;
+    NotAvailable : record { message : text };
   };
 };
 
@@ -47,9 +47,9 @@ type WithdrawResponse = variant {
     amount : Amount;
   };
   Err : variant {
-    CallLedgerError : text;
-    InsufficientCredit;
-    AmountBelowMinimum;
+    CallLedgerError : record { message : text };
+    InsufficientCredit : record {};
+    AmountBelowMinimum : record {};
   };
 };
 
@@ -68,9 +68,9 @@ type DepositResult = record {
 type DepositResponse = variant {
   Ok : DepositResult;
   Err : variant {
-    AmountBelowMinimum;
-    CallLedgerError : text;
-    TransferError : text; // insufficient allowance or insufficient funds
+    AmountBelowMinimum : record {};
+    CallLedgerError : record { message : text };
+    TransferError : record { message : text }; // insufficient allowance or insufficient funds
   };
 };
 
