@@ -192,6 +192,7 @@ type NotifyResult = variant {
   Ok : record {
     deposit_inc : Amount;
     credit_inc : Amount;
+    credit : int;
   }; 
   Err : variant {
     CallLedgerError : text;
@@ -229,15 +230,17 @@ The `credit_inc` field is the incremental credit amount applied to the user as a
 The value may be lower than `deposit_inc` due to the application of deposit fees, but does not have to be lower.
 `credit_inc` is provided here because the user cannot reliably compute it himself from other data.
 
+The `credit` field is the absolute credit balance after any newly detected deposit has been credited.
+
 If multiple deposit transactions happened concurrently with calls to `notify` then the end result may depend on timing.
-For example, say the ledger fee is 10.
+For example, say the ledger fee is 10 and the initial credit balance of the user is 0.
 If a deposit of 20 tokens is made, then `notify` is called, then another 20 tokens are deposited and `notify` is called again
 then the two `notify` responses are:
-`{ deposit_inc = 20; credit_inc = 10 }`, 
-`{ deposit_inc = 20; credit_inc = 10 }`.
+`{ deposit_inc = 20; credit_inc = 10; credit = 10 }`, 
+`{ deposit_inc = 20; credit_inc = 10; credit = 20 }`.
 If the first `notify` arrives _after_ the second deposit then two responses are:
-`{ deposit_inc = 40; credit_inc = 30 }`, 
-`{ deposit_inc = 0; credit_inc = 0 }`.
+`{ deposit_inc = 40; credit_inc = 30; credit = 30 }`, 
+`{ deposit_inc = 0; credit_inc = 0; credit = 30 }`.
 In this case the deposit fee is applied only once because the service sees it as one deposit.
 
 The service is free to expand the response record with additional optional fields.

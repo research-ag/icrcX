@@ -17,6 +17,7 @@ type NotifyArg = record {
 type NotifyResult = record {
   deposit_inc : Amount;
   credit_inc : Amount;
+  credit : int;
 };
 
 type NotifyResponse = variant {
@@ -85,6 +86,6 @@ service : () -> {
 
   // updates
   icrcX_notify : (NotifyArg) -> (NotifyResponse);
-  icrcX_deposit : (DepositArg) -> (DepositResponse);
+  icrcX_deposit : (DepositArgs) -> (DepositResponse);
   icrcX_withdraw : (WithdrawArgs) -> (WithdrawResponse);
 };
