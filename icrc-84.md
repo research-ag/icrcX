@@ -40,7 +40,7 @@ type User = principal;
 ## Deposit accounts
 
 There are two ways for a user to deposit funds to the service.
-The first one is via direct transfer to a deposit account.
+The first one is via direct transfer to a so-called "deposit account" of the service.
 The second one is via an allowance,
 but only if the ICRC-1 ledger supports ICRC-2.
 
@@ -51,6 +51,8 @@ The derivation works by embedding the principal bytes right-aligned into the 32 
 ```candid "Type definitions" +=
 type Subaccount = blob;
 ```
+
+We call the account belonging to the service obtained in this way the "deposit account of the user".
 
 ## Requirements
 
@@ -289,11 +291,14 @@ or a consolidation transfer that relates to the caller's deposit account for the
 ## Deposit
 
 An alternative way to make deposits is via allowances.
-The user has to set up an allowance for one of its subaccounts with the service's principal as the spender.
+The requirement is that an allowance has been set up from some account (below called the `from` account) for the service.
+The spender account in that allowance must be equal to the deposit account of the user as defined in section "Deposit accounts" above.
+This means the spender is a subaccount of the service which uniquely identifies the user.
+
 The user then calls the function
 
 ```candid "Methods" +=
-  icrc84_deposit : (DepositArg) -> (DepositResponse);
+  icrc84_deposit : (DepositArgs) -> (DepositResponse);
 ```
 
 with the following argument:
@@ -302,14 +307,19 @@ with the following argument:
 type DepositArgs = record {
   token : Token;
   amount : Amount;
-  subaccount : opt Subaccount; // subaccount of the caller which has the allowance
+  from : Account;
+};
+
+type Account = record {
+  owner : principal;
+  subaccount : opt Subaccount;
 };
 ```
 
 `token` is the Token that is being deposited.
 `amount` is the amount that is to be drawn from the allowance into the service.
 Any ledger transfer fees will be added on the user account's side.
-`subaccount` is the user's subaccount that carries the allowance where `null` means the default account.
+`from` is the ICRC-1 account from which the funds are to be drawn via allowance.
 
 If successful, the call returns:
 
@@ -455,12 +465,6 @@ But allowances due not always work, for example if
 * the ICRC-1 ledger does not support ICRC-2
 * the user's wallet does not support ICRC-2 (currently most wallets)
 * the user wants to make a deposit directly from an exchange
-
-Another common case in which allowances do not work is if the user logs in with Internet Identity to the service frontend.
-Then the user will have one principal in the service frontend
-and another principal in his wallet.
-He can create an allowance from his wallet principal to the service
-but the service frontend will not recognize this principal. 
 
 ## Open questions
 
