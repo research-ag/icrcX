@@ -36,7 +36,7 @@ type BalanceResponse = variant {
 };
 
 type WithdrawArgs = record {
-  to_subaccount : opt Subaccount;
+  to : Account;
   amount : Amount;
   token : Token;
 };

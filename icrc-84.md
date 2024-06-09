@@ -360,15 +360,15 @@ icrc84_withdraw : (WithdrawArgs) -> (WithdrawResult);
 with
 ```candid "Type definitions" +=
 type WithdrawArgs = record {
-  token : Token;
-  to_subaccount : opt Subaccount;
+  to : Account;
   amount : Amount;
+  token : Token;
 };
 ```
 
 The `WithdrawArgs` record specifies
 the `Token` to be withdrawn,
-the subaccount of the caller which is the destination of the withdrawal,
+the destination account
 and the `Amount` to be taken from the caller's credits.
 
 If the specified `Token` is not supported by the service then the call will throw the async error `canister_reject` with error message `"UnknownToken"`.
@@ -437,23 +437,6 @@ The disadvantages are:
 
 We prefer the approach that requires less state.
 It makes the service leaner and easier to handle upgrades.
-
-### Why can withdrawals only be made to the caller's account?
-
-This is done to offload tracability of funds to the underlying ICRC-1 ledgers.
-By looking at the underlying ICRC-1 ledger only,
-all deposited funds can be uniquely linked to the principal that is being credited.
-Through this restriction the same is possible for withdrawals.
-By looking at the receiving principal of a transfer on the ledger
-we know that this same principal was also the one who initiated the withdrawal. 
-
-This prevents the service to act as a mixer.
-Without this restriction,
-the services could potentially be forced to either do KYC or to provide a complete log of its internal transaction,
-to make the internal flow of funds tracable. 
-However, we want to be able to keep the services as simple as possible.
-In particular, we do not want to burden the services with the necessity to log all internal transactions.
-Hence, this restrictions is made to offload all logging to the ICRC-1 ledgers.
 
 ### What are the benfits of using `notify` vs allowances?
 
